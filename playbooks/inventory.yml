@@ -1,0 +1,24 @@
+all:
+  children:
+    proxmox_nodes:
+      hosts:
+        node1:
+          ansible_host: 192.168.1.101  # Josh - beefy PC (RTX 4080 Super)
+        node2:
+          ansible_host: 192.168.1.102  # Josh - XPS laptop
+        node3:
+          ansible_host: 192.168.1.103  # Josh - Razer gaming laptop (RTX 20-series)
+        node4:
+          ansible_host: 192.168.1.104  # Ryan - old PC (GTX 1070) — k3s server node
+    k3s_server:
+      hosts:
+        node4:
+          ansible_host: 192.168.1.104
+    k3s_agents:
+      hosts:
+        node1:
+          ansible_host: 192.168.1.101
+        node2:
+          ansible_host: 192.168.1.102
+        node3:
+          ansible_host: 192.168.1.103

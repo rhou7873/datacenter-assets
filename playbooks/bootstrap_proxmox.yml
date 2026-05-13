@@ -1,0 +1,67 @@
+---
+- name: Bootstrap Proxmox nodes
+  hosts: proxmox_nodes
+  become: true
+
+  tasks:
+    - name: Disable Proxmox enterprise repo
+      file:
+        path: /etc/apt/sources.list.d/pve-enterprise.list
+        state: absent
+
+    - name: Update apt cache
+      apt:
+        update_cache: true
+
+    - name: Install essential packages
+      apt:
+        name:
+          - curl
+          - git
+          - vim
+          - htop
+          - net-tools
+          - open-iscsi    # required for Longhorn
+          - nfs-common    # required for NFS mounts
+        state: present
+
+    - name: Enable IOMMU in GRUB (Intel)
+      lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt"'
+      notify: update grub
+      # swap intel_iommu=on for amd_iommu=on on AMD nodes
+
+    - name: Load VFIO modules for PCIe passthrough
+      lineinfile:
+        path: /etc/modules
+        line: "{{ item }}"
+      loop:
+        - vfio
+        - vfio_iommu_type1
+        - vfio_pci
+        - vfio_virqfd
+
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Configure SSH — disable password auth
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^PermitRootLogin', line: 'PermitRootLogin prohibit-password' }
+      notify: restart sshd
+
+  handlers:
+    - name: update grub
+      command: update-grub
+
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted

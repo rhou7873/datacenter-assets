@@ -1,0 +1,36 @@
+---
+- name: Install Portainer on k3s cluster
+  hosts: k3s_server
+  become: true
+
+  tasks:
+    - name: Install Helm
+      shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Add Portainer Helm repo
+      command: helm repo add portainer https://portainer.github.io/k8s/
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Update Helm repos
+      command: helm repo update
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Create portainer namespace
+      command: kubectl create namespace portainer
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: true  # skip if already exists
+
+    - name: Install Portainer CE via Helm
+      command: >
+        helm install portainer portainer/portainer
+        --namespace portainer
+        --set service.type=NodePort
+        --set service.nodePort=30777
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: true  # skip if already installed

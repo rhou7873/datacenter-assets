@@ -1,0 +1,50 @@
+---
+- name: Provision k3s VMs on Proxmox nodes
+  hosts: proxmox_nodes
+  become: true
+
+  vars:
+    vm_template_id: 9000
+    vm_memory: 4096      # MB
+    vm_cores: 2
+    vm_disk: "20G"
+    vm_os_storage: "local-lvm"
+
+  tasks:
+    - name: Download Ubuntu 22.04 cloud image
+      get_url:
+        url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+        dest: /var/lib/vz/template/iso/ubuntu-22.04-cloud.img
+
+    - name: Create VM template from cloud image
+      command: >
+        qm create {{ vm_template_id }}
+        --name ubuntu-template
+        --memory {{ vm_memory }}
+        --cores {{ vm_cores }}
+        --net0 virtio,bridge={{ proxmox_bridge }}
+      ignore_errors: true  # skip if template already exists
+
+    - name: Import disk to template
+      command: >
+        qm importdisk {{ vm_template_id }}
+        /var/lib/vz/template/iso/ubuntu-22.04-cloud.img
+        {{ proxmox_storage }}
+      ignore_errors: true
+
+    - name: Convert to template
+      command: qm template {{ vm_template_id }}
+      ignore_errors: true
+
+    - name: Clone VM from template for k3s node
+      community.general.proxmox_kvm:
+        api_host: "{{ ansible_host }}"
+        api_user: root@pam
+        api_password: "{{ proxmox_api_password }}"  # store in ansible vault
+        clone: ubuntu-template
+        name: "k3s-{{ inventory_hostname }}"
+        node: "{{ inventory_hostname }}"
+        storage: "{{ proxmox_storage }}"
+        memory: "{{ vm_memory }}"
+        cores: "{{ vm_cores }}"
+        state: present
