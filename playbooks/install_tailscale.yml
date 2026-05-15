@@ -1,0 +1,9 @@
+---
+- name: Install Tailscale on all nodes
+  hosts: proxmox_nodes
+  become: true
+
+  roles:
+    - role: artis3n.tailscale
+      vars:
+        tailscale_authkey: "{{ vault_tailscale_authkey }}"
