@@ -6,15 +6,21 @@
   vars:
     vm_template_id: 9000
     vm_memory: 4096      # MB
-    vm_cores: 2
-    vm_disk: "20G"
+    vm_cores: 4
+    vm_disk: "32G"
     vm_os_storage: "local-lvm"
+    ubuntu_iso: "local:iso/ubuntu-22.04.5-live-server-amd64.iso"
+    source_node: "rhou-pc-msi"
+    source_iso_path: "/var/lib/vz/template/iso/ubuntu-22.04.5-live-server-amd64.iso"
 
   tasks:
-    - name: Download Ubuntu 22.04 cloud image
-      get_url:
-        url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
-        dest: /var/lib/vz/template/iso/ubuntu-22.04-cloud.img
+    - name: Copy Ubuntu ISO from rhou-pc-msi to remote node
+      when: inventory_hostname != source_node
+      command: >
+        scp root@{{ hostvars[source_node]['ansible_host'] }}:{{ source_iso_path }}
+        /var/lib/vz/template/iso/ubuntu-22.04.5-live-server-amd64.iso
+      args:
+        creates: /var/lib/vz/template/iso/ubuntu-22.04.5-live-server-amd64.iso
 
     - name: Create VM template from cloud image
       command: >
@@ -23,13 +29,25 @@
         --memory {{ vm_memory }}
         --cores {{ vm_cores }}
         --net0 virtio,bridge={{ proxmox_bridge }}
+        --cdrom {{ ubuntu_iso }}
       ignore_errors: true  # skip if template already exists
 
-    - name: Import disk to template
+    - name: Add disk to template
       command: >
-        qm importdisk {{ vm_template_id }}
-        /var/lib/vz/template/iso/ubuntu-22.04-cloud.img
-        {{ proxmox_storage }}
+        qm set {{ vm_template_id }}
+        --scsi0 {{ proxmox_storage }}:{{ vm_disk }},iothread=1
+      ignore_errors: true
+
+    - name: Set boot order for template
+      command: >
+        qm set {{ vm_template_id }}
+        --boot order=scsi0;ide2
+      ignore_errors: true
+
+    - name: Enable QEMU guest agent on template
+      command: >
+        qm set {{ vm_template_id }}
+        --agent enabled=1
       ignore_errors: true
 
     - name: Convert to template
@@ -47,4 +65,5 @@
         storage: "{{ proxmox_storage }}"
         memory: "{{ vm_memory }}"
         cores: "{{ vm_cores }}"
+        onboot: true
         state: present

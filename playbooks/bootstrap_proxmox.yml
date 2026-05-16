@@ -4,10 +4,35 @@
   become: true
 
   tasks:
-    - name: Disable Proxmox enterprise repo
+    - name: Remove Proxmox enterprise repo (.list)
       file:
         path: /etc/apt/sources.list.d/pve-enterprise.list
         state: absent
+
+    - name: Remove Proxmox enterprise repo (.sources)
+      file:
+        path: /etc/apt/sources.list.d/pve-enterprise.sources
+        state: absent
+
+    - name: Remove Ceph enterprise repo (.list)
+      file:
+        path: /etc/apt/sources.list.d/ceph.list
+        state: absent
+
+    - name: Remove Ceph enterprise repo (.sources)
+      file:
+        path: /etc/apt/sources.list.d/ceph.sources
+        state: absent
+
+    - name: Add Proxmox no-subscription repo
+      copy:
+        content: "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription\n"
+        dest: /etc/apt/sources.list.d/pve-no-subscription.list
+
+    - name: Add Ceph no-subscription repo
+      copy:
+        content: "deb http://download.proxmox.com/debian/ceph-squid bookworm no-subscription\n"
+        dest: /etc/apt/sources.list.d/ceph-no-subscription.list
 
     - name: Update apt cache
       apt:
