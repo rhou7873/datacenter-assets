@@ -1,6 +1,6 @@
-# Homelab Cluster Assets
+# Datacenter Assets
 
-*Software assets used for bootstrapping personal homelab cluster*
+*Software assets used for bootstrapping personal datacenter*
 
 - Proxmox VE ISO
 - Ansible playbooks
